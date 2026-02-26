@@ -12,7 +12,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/tu-usuario/rick-morty.git'
+                git branch: 'main', url: 'https://github.com/luishark2/rick-morty.git'
             }
         }
 

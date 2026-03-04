@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     tools {
-        nodejs 'nodejs'   // Asegúrate que coincida con el nombre de tu herramienta NodeJS
+        nodejs 'nodejs'   // Nombre de tu herramienta NodeJS en Jenkins
     }
 
     environment {
@@ -10,15 +10,10 @@ pipeline {
     }
 
     stages {
-        stage('Checkout') {
-            steps {
-                git branch: 'main', url: 'https://github.com/luishark2/rick-morty.git'
-            }
-        }
+        // El checkout inicial ya lo hace Jenkins automáticamente, no necesitas otra etapa
 
         stage('Clean and Install Dependencies') {
             steps {
-                // Eliminar instalaciones previas para evitar conflictos de bindings nativos
                 sh 'rm -rf node_modules package-lock.json'
                 sh 'npm install'
             }
@@ -38,7 +33,7 @@ pipeline {
 
         stage('Run Tests with Coverage') {
             steps {
-                // Capturar el error para que el pipeline no se detenga
+                // Capturar error para que el pipeline continúe
                 catchError(buildResult: 'UNSTABLE', stageResult: 'FAILED') {
                     sh 'npm run test'
                 }
@@ -85,8 +80,7 @@ pipeline {
             }
         }
 
-        // Opcional: publicar release en GitHub
-        // stage('Publish to GitHub Releases') { ... }
+        // Opcional: stage('Publish to GitHub Releases') { ... }
     }
 
     post {

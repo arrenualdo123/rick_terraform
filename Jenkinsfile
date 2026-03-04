@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     tools {
-        nodejs 'nodejs'   // Ajusta el nombre según tu configuración (puede ser 'nodejs' o 'NodeJS 18')
+        nodejs 'nodejs'   // Asegúrate que coincida con el nombre de tu herramienta NodeJS
     }
 
     environment {
@@ -16,15 +16,16 @@ pipeline {
             }
         }
 
-        stage('Install Dependencies') {
+        stage('Clean and Install Dependencies') {
             steps {
+                // Eliminar instalaciones previas para evitar conflictos de bindings nativos
+                sh 'rm -rf node_modules package-lock.json'
                 sh 'npm install'
             }
         }
 
         stage('Dependency Security Audit') {
             steps {
-                // Analiza vulnerabilidades en dependencias (no detiene el pipeline)
                 sh 'npm audit --audit-level=moderate || true'
             }
         }
@@ -37,12 +38,16 @@ pipeline {
 
         stage('Run Tests with Coverage') {
             steps {
-                sh 'npm run test'   // Este script debe ejecutar pruebas y generar cobertura
+                sh 'npm run test'
             }
             post {
                 always {
-                    // Publica reporte de pruebas JUnit si tu framework lo genera (ej. vitest --reporter=junit)
-                    junit 'junit.xml'   // Ajusta la ruta si es necesario
+                    // Publicar JUnit solo si el archivo existe
+                    script {
+                        if (fileExists('junit.xml')) {
+                            junit 'junit.xml'
+                        }
+                    }
                 }
             }
         }
@@ -74,25 +79,12 @@ pipeline {
 
         stage('Archive Build Artifacts') {
             steps {
-                // Guarda el directorio de salida del build (dist, build, etc.)
                 archiveArtifacts artifacts: 'dist/**', fingerprint: true
             }
         }
 
-        stage('Publish to GitHub Releases (Opcional)') {
-            when {
-                branch 'main'
-            }
-            steps {
-                script {
-                    // Requiere tener instalado gh (GitHub CLI) en el contenedor Jenkins y credenciales configuradas
-                    def version = "v1.0.${env.BUILD_NUMBER}"
-                    sh """
-                        gh release create $version --title "Release $version" --notes "Build automático desde Jenkins" ./dist/*
-                    """
-                }
-            }
-        }
+        // Opcional: publicar release en GitHub
+        // stage('Publish to GitHub Releases') { ... }
     }
 
     post {

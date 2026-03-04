@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     tools {
-        nodejs 'nodejs'   // Nombre de tu herramienta NodeJS en Jenkins
+        nodejs 'nodejs'   // Asegúrate que coincide con el nombre en Jenkins
     }
 
     environment {
@@ -10,8 +10,6 @@ pipeline {
     }
 
     stages {
-        // El checkout inicial ya lo hace Jenkins automáticamente, no necesitas otra etapa
-
         stage('Clean and Install Dependencies') {
             steps {
                 sh 'rm -rf node_modules package-lock.json'
@@ -33,9 +31,13 @@ pipeline {
 
         stage('Run Tests with Coverage') {
             steps {
-                // Capturar error para que el pipeline continúe
-                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILED') {
-                    sh 'npm run test'
+                script {
+                    // Ejecutar pruebas y capturar código de salida
+                    def exitCode = sh(script: 'npm run test', returnStatus: true)
+                    if (exitCode != 0) {
+                        currentBuild.result = 'UNSTABLE'
+                        echo "Las pruebas fallaron con código ${exitCode}. El build se marca como inestable."
+                    }
                 }
             }
             post {
@@ -79,8 +81,6 @@ pipeline {
                 archiveArtifacts artifacts: 'dist/**', fingerprint: true
             }
         }
-
-        // Opcional: stage('Publish to GitHub Releases') { ... }
     }
 
     post {

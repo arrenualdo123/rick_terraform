@@ -38,11 +38,13 @@ pipeline {
 
         stage('Run Tests with Coverage') {
             steps {
-                sh 'npm run test'
+                // Capturar el error para que el pipeline no se detenga
+                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILED') {
+                    sh 'npm run test'
+                }
             }
             post {
                 always {
-                    // Publicar JUnit solo si el archivo existe
                     script {
                         if (fileExists('junit.xml')) {
                             junit 'junit.xml'

@@ -1,0 +1,39 @@
+- hosts: localhost
+  connection: local
+  vars:
+    resource_group: "rg-devops-integrador"
+    cluster_name: "aks-integrador"
+
+  tasks:
+    - name: Descargar llave GPG de Kubernetes
+      become: yes
+      get_url:
+        url: https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key
+        dest: /etc/apt/keyrings/kubernetes-apt-keyring.asc
+        mode: '0644'
+
+    - name: Añadir repositorio de Kubernetes
+      become: yes
+      apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.asc] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /"
+        state: present
+        filename: kubernetes
+
+    - name: Instalar kubectl
+      become: yes
+      apt:
+        name: kubectl
+        state: present
+        update_cache: yes
+
+    - name: Obtener credenciales de AKS (Conexión con Azure)
+      command: "az aks get-credentials --resource-group {{ resource_group }} --name {{ cluster_name }} --overwrite-existing"
+      changed_when: false
+
+    - name: Verificar conexión con el clúster
+      command: kubectl get nodes
+      register: nodes_out
+
+    - name: Mostrar nodos detectados
+      debug:
+        msg: "{{ nodes_out.stdout_lines }}"

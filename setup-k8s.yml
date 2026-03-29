@@ -5,29 +5,45 @@
     cluster_name: "aks-integrador"
 
   tasks:
-    - name: Descargar llave GPG de Kubernetes
+    - name: Crear carpeta de keyrings
       become: yes
-      get_url:
-        url: https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key
-        dest: /etc/apt/keyrings/kubernetes-apt-keyring.asc
-        mode: '0644'
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Descargar clave GPG correcta de Kubernetes
+      become: yes
+      shell: |
+        curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | \
+        gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+      args:
+        creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 
     - name: Añadir repositorio de Kubernetes
       become: yes
       apt_repository:
-        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.asc] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /"
+        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /"
         state: present
         filename: kubernetes
+
+    - name: Actualizar cache apt
+      become: yes
+      apt:
+        update_cache: yes
 
     - name: Instalar kubectl
       become: yes
       apt:
         name: kubectl
         state: present
-        update_cache: yes
 
-    - name: Obtener credenciales de AKS (Conexión con Azure)
-      command: "az aks get-credentials --resource-group {{ resource_group }} --name {{ cluster_name }} --overwrite-existing"
+    - name: Obtener credenciales de AKS
+      command: >
+        az aks get-credentials
+        --resource-group {{ resource_group }}
+        --name {{ cluster_name }}
+        --overwrite-existing
       changed_when: false
 
     - name: Verificar conexión con el clúster
@@ -37,3 +53,22 @@
     - name: Mostrar nodos detectados
       debug:
         msg: "{{ nodes_out.stdout_lines }}"
+
+    - name: Instalar librería kubernetes de Python
+      become: yes
+      apt:
+        name: python3-kubernetes
+        state: present
+
+    - name: Crear ConfigMap para la App Rick-Morty
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: rick-morty-config
+            namespace: default
+          data:
+            API_URL: "https://rickandmortyapi.com/api"
+            NODE_ENV: "production"
